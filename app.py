@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, session
+from flask import Flask, render_template, redirect, url_for, flash, request, session,jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import pyrebase
@@ -9,6 +9,9 @@ import sys
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['DEBUG'] = True
+@app.route('/')
+def landing():
+    return render_template('landing.html')
 @app.errorhandler(Exception)
 def handle_exception(e):
     print(str(e), file=sys.stderr)
@@ -30,7 +33,8 @@ auth = firebase.auth()
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-
+login_manager.login_message_category = 'info'
+login_manager.session_protection = None
 class User(UserMixin):
     def __init__(self, uid, username, is_admin=False):
         self.id = uid
@@ -44,9 +48,11 @@ def load_user(user_id):
         return User(user_id, user_data['username'], user_data.get('is_admin', False))
     return None
 
-@app.route('/')
+@app.route('/chat')
 @login_required
 def chat():
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Authentication required"}), 401
     messages = db.child("messages").get().val()
     if messages:
         messages = [{'id': k, **v} for k, v in messages.items()]
@@ -64,7 +70,7 @@ def login():
             user = auth.sign_in_with_email_and_password(email, password)
             user_data = db.child("users").child(user['localId']).get().val()
             login_user(User(user['localId'], user_data['username'], user_data.get('is_admin', False)))
-            return redirect(url_for('chat'))
+            return redirect(url_for('chat',_external=True))
         except:
             flash('Invalid email or password')
     return render_template('login.html')
@@ -84,7 +90,7 @@ def register():
                 "is_admin": is_admin
             })
             flash('Account created successfully')
-            return redirect(url_for('login'))
+            return redirect(url_for('login',_external=True))
         except:
             flash('Registration failed')
     return render_template('register.html')
@@ -93,7 +99,7 @@ def register():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('login'))
+    return redirect(url_for('login',_external=True))
 
 @app.route('/send_message', methods=['POST'])
 @login_required
@@ -106,7 +112,7 @@ def send_message():
             "username": current_user.username,
             "timestamp": datetime.utcnow().isoformat()
         })
-    return redirect(url_for('chat'))
+    return redirect(url_for('chat',_external=True))
 
 @app.route('/delete_message/<message_id>', methods=['POST'])
 @login_required
@@ -114,7 +120,7 @@ def delete_message(message_id):
     if current_user.is_admin:
         db.child("messages").child(message_id).remove()
         flash('Message deleted successfully')
-    return redirect(url_for('chat'))
+    return redirect(url_for('chat',_external=True))
 
 @app.route('/users')
 @login_required
@@ -126,7 +132,7 @@ def users():
         else:
             users = []
         return render_template('users.html', users=users)
-    return redirect(url_for('chat'))
+    return redirect(url_for('chat',_external=True))
 
 @app.route('/delete_user/<user_id>', methods=['POST'])
 @login_required
@@ -138,7 +144,7 @@ def delete_user(user_id):
             flash('User deleted successfully')
         else:
             flash('Cannot delete admin user')
-    return redirect(url_for('users'))
+    return redirect(url_for('users',_external=True))
 
 # if __name__ == '__main__':
 #     app.run(debug=True)
