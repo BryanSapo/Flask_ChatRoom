@@ -3,10 +3,16 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 import pyrebase
 from datetime import datetime
+import os
+import sys
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
-
+app.config['DEBUG'] = True
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(str(e), file=sys.stderr)
+    return str(e), 500
 # Firebase configuration
 firebase_config = {
     "apiKey": "AIzaSyBRw-lOvRw0R7c6GgyWWFRACdzgYKYn7qI",
