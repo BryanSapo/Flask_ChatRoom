@@ -134,5 +134,7 @@ def delete_user(user_id):
             flash('Cannot delete admin user')
     return redirect(url_for('users'))
 
+# if __name__ == '__main__':
+#     app.run(debug=True)
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
